@@ -1,0 +1,315 @@
+# Download a reference yeast genome as compressed archive to the current directory
+wget https://downloads.yeastgenome.org/sequence/S288C_reference/genome_releases/S288C_reference_genome_Current_Release.tgz
+
+# Decompress the archive (will create a new diretory)
+tar -xzvf S288C_reference_genome_Current_Release.tgz
+
+ls -l DIRECTORY
+
+Output:
+
+mariia@ox:~$ ls -1 S288C_reference_genome_R64-2-1_20150113
+gene_association_R64-2-1_20150113.sgd
+NotFeature_R64-2-1_20150113.fasta
+orf_coding_all_R64-2-1_20150113.fasta
+orf_trans_all_R64-2-1_20150113.fasta
+other_features_genomic_R64-2-1_20150113.fasta
+rna_coding_R64-2-1_20150113.fasta
+S288C_reference_sequence_R64-2-1_20150113.fsa
+saccharomyces_cerevisiae_R64-2-1_20150113.gff
+
+#Inspect the contents of file rna_coding_R64-2-1_20150113.fasta. 
+#less FILENAME 
+
+Output: a lot of data
+
+#Move back outside of data with cd .. and make a directory called results
+
+Output:
+mariia@ox:~$ mkdir results
+mariia@ox:~$ cd results
+mariia@ox:~/results$ 
+
+#Create an empty file inside it called counts.txt. 
+#touch counts.txt 
+#timestamp the results directory. Rename it to results_2020_04_28
+
+Output:
+
+mariia@ox:~$ mv results results_2020_04_17
+
+
+2. Analyzing files
+#Count the lines in orf_coding_all_R64-2-1_20150113.fasta and orf_trans_all_R64-2-1_20150113.fasta 
+
+Output:
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ wc -l orf_coding_all_R64-2-1_20150113.fasta
+161265 orf_coding_all_R64-2-1_20150113.fasta
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ wc -l orf_trans_all_R64-2-1_20150113.fasta
+60443 orf_trans_all_R64-2-1_20150113.fasta
+
+#Count how many genes are in orf_coding_all_R64-2-1_20150113.fasta. 
+
+Output:
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ grep ">" orf_coding_all_R64-2-1_20150113.fasta | wc -l
+6713
+
+#Save the number of genes in results_2020_01_28/counts.txt  
+
+Output:
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ grep ">" orf_coding_all_R64-2-1_20150113.fasta | wc -l  >/home/mariia/results_2020_04_17/counts.txt
+
+
+#Count how many tRNA genes are in rna_coding_R64-2-1_20150113.fasta 
+
+Output:
+mariia@ox:~$ grep -c "tRNA_gene" "/home/mariia/S288C_reference_genome_R64-2-1_20150113/rna_coding_R64-2-1_20150113.fasta"
+299
+
+3. Working with text columns
+#Make a new directory for this exercise and change location to it.
+
+# gene experssion data (fold change)
+wget https://web.archive.org/web/20130211035221/http://www.cbs.dtu.dk/courses/27619/ex1.dat
+
+# annotation
+wget https://web.archive.org/web/20170706124217/http://www.cbs.dtu.dk/courses/27619/ex1.acc
+
+#merge experimental results 
+
+paste ex1.acc ex1.dat
+
+Output: QOR_HUMAN       L13278.CDS.1    2.9766  1.5059  -1.1219
+...
+#it merged two separate files into one data frame (?)
+
+4. Counting yeast-human orthologs
+
+# Download and decompose a reference
+mariia@ox:~/counting_orthologs$ wget http://eggnog5.embl.de/download/eggnog_5.0/per_tax_level/2759/2759_members.tsv.gz
+mariia@ox:~/counting_orthologs$  gunzip 2759_members.tsv.gz
+
+Output:
+"/home/mariia/counting_orthologs/2759_members.tsv"
+
+#filtering in the lines that contain proteins found in the organism
+#take that result and extract the orthologous group IDs for each of those lines
+#sort this list
+#save it to a file
+
+# filter "TaxonID." | cut out column 2 | sort > RESULTS_FILE
+
+grep "4891." 2759_members.tsv | cut -f 2 | sort > groups_scerevisiae.txt
+grep "9606." 2759_members.tsv | cut -f 2 | sort > groups_hsapiens.txt
+
+# inspect: less -S groups_hsapiens.txt
+
+mariia@ox:~/counting_orthologs$ less -S groups_hsapiens.txt
+mariia@ox:~/counting_orthologs$ less groups_hsapiens.txt
+
+Output:
+
+-S didn't make a difference to just less command. both outputs are a single column
+ ...
+2QPPG
+2QPPI
+...
+
+# Question Why did we use the dot in the filtering? Asw: To filter only the first part (up to the first dot)
+
+#intersection of these two lists
+#-12 inhibits the first 2 rows ----Why do we need to inhibit them? Do those rows contain the names?
+
+comm -12 <(grep "4891." 2759_members.tsv | cut -f 2 | sort) <(grep "9606." 2759_members.tsv | cut -f 2 | sort) | wc -l
+
+Output:
+838
+
+5. Sequence Processing
+#Produce the complementary RNA sequence of a DNA string
+
+#sed (stream editor) - takes either a file or the output of another command and processes the text according to various rules. 
+#sed 'y/ACGT/UGCA/' FILE > FILE_RNA
+
+# substitutes (/y) each letter in the first list (ACGT) with each corresponding letter in the second (UGCA), individually (so A -> U, C -> G, etc.).
+
+# skip FASTA header lines 
+#sed '/^>/!y/ACGT/UGCA/' FILE.fasta > FILE_RNA.fasta
+# (/^>/!) selects locations in the file
+
+
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ sed '/^>/!y/ACGT/UGCA/' "/home/mariia/S288C_reference_genome_R64-2-1_20150113/orf_coding_all_R64-2-1_20150113.fasta" > "/home/mariia/S288C_reference_genome_R64-2-1_20150113/orf_coding_all_R64-2-1_20150113_RNA.fasta"
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ less "/home/mariia/S288C_reference_genome_R64-2-1_20150113/orf_coding_all_R64-2-1_20150113_RNA.fasta"
+
+Output:
+...
+UACCAUGACUGCUAAAUAGGACUGCUUGAGCAUGUUUAUCACAGACUAUUUUAACGAAGU
+UUAUUCCCUUUUUAGUGAAACUUAGUCGACACCCUAUAUAGACCAUUUAUAAAACUAAAC
+...
+
+  
+Home work
+
+#Task 1
+#How many protein-coding  genes are on chromosome II in saccharomyces_cerevisiae_R64-2-1_20150113.gff 
+# Note that the chromosome column is followed by a TAB charachter, which is encoded as \t. 
+
+
+mariia@ox:~/S288C_reference_genome_R64-2-1_20150113$ grep -c -P "chrII\tSGD\tgene" "/home/mariia/S288C_reference_genome_R64-2-1_20150113/saccharomyces_cerevisiae_R64-2-1_20150113.gff"
+
+Output:
+456
+
+#Task 2
+#Count GC content in S288C_reference_sequence_R64-2-1_20150113.fsa
+
+#there is a command found in the internet that can calculate GC% but I can't run it as I am not able to install bison to compilate bioawk without being a super user sudo (asked a friend of mine to send me the  compilated bioawk file)
+
+#Solution 1:
+mariia@ox:~$ tar xvf "/home/mariia/bioawk.tar.gz"
+mariia@ox:~$ bioawk/bioawk -c fastx '{ print ">"$name; print gc($seq) }' "/home/mariia/S288C_reference_genome_R64-2-1_20150113/S288C_reference_sequence_R64-2-1_20150113.fsa"
+
+Output 1:
+
+>ref|NC_001133|
+0,392702
+>ref|NC_001134|
+0,38341
+>ref|NC_001135|
+0,385323
+>ref|NC_001136|
+0,379064
+>ref|NC_001137|
+0,385074
+>ref|NC_001138|
+0,387288
+>ref|NC_001139|
+0,380614
+>ref|NC_001140|
+0,384951
+>ref|NC_001141|
+0,389022
+>ref|NC_001142|
+0,383733
+>ref|NC_001143|
+0,380694
+>ref|NC_001144|
+0,384763
+>ref|NC_001145|
+0,382036
+>ref|NC_001146|
+0,386379
+>ref|NC_001147|
+0,381602
+>ref|NC_001148|
+0,380644
+>ref|NC_001224|
+0,171091
+
+Solution 2:
+
+#transform all lowercase letters to uppercase | remove the lines containing ">" | save as a new file
+
+mariia@ox:~$ sed -e 's/\(.*\)/\U\1/' "/home/mariia/S288C_reference_genome_R64-2-1_20150113/S288C_reference_sequence_R64-2-1_20150113.fsa" | grep -v ">" > "/home/mariia/S288C_reference_genome_R64-2-1_20150113/S288C_reference_sequence_R64-2-1_20150113_transformed.fsa"
+
+# save to a variable the total number of characters
+
+mariia@ox:~$ export total=$(egrep -o 'A|T|C|G' "/home/mariia/S288C_reference_genome_R64-2-1_20150113/S288C_reference_sequence_R64-2-1_20150113_transformed.fsa" | wc -c)
+mariia@ox:~$ echo $total
+
+Output:
+24314210
+
+# save to a variable the number of G and C
+
+mariia@ox:~$ export gc=$(egrep -o '|G|C' "/home/mariia/S288C_reference_genome_R64-2-1_20150113/S288C_reference_sequence_R64-2-1_20150113_transformed.fsa" | wc -c)
+
+mariia@ox:~$ echo $gc
+
+Output:
+9275352
+
+#calculate the GC%
+
+mariia@ox:~$ echo "scale=2; $gc*100/$total" | bc
+
+Output:
+38.14
+
+#Task 3:
+#a) repeat the same steps from task 2, solution 2
+
+#transform all lowercase letters to uppercase | remove the lines containing ">" | save as a new file
+
+mariia@ox:~$ sed -e 's/\(.*\)/\U\1/' "/home/mariia/Y55_JRIF00000000_SGD_cds.fsa" | grep -v ">" > "/home/mariia/Y55_JRIF00000000_SGD_cds_transformed.fsa"
+
+Output:
+#a new file without lowercase letters and headers
+
+# save to a variable the total number of characters
+
+mariia@ox:~$ export total=$(egrep -o 'A|T|C|G' "/home/mariia/Y55_JRIF00000000_SGD_cds_transformed.fsa" | wc -c)
+mariia@ox:~$ echo $total
+
+Output:
+16147866
+
+
+# save to a vatiable the gc content
+
+mariia@ox:~$ export gc=$(egrep -o '|G|C' "/home/mariia/Y55_JRIF00000000_SGD_cds_transformed.fsa" | wc -c)
+mariia@ox:~$ echo $gc
+
+Output:
+6383954
+
+#calculate the GC%
+
+mariia@ox:~$ echo "scale=2; $gc*100/$total" | bc
+
+Output:
+39.53
+
+#Compare
+
+#39.53 is higher than 38.14. The GC contecnt in Y55_JRIF00000000_SGD_cds.fsa is higher than in S288C_reference_sequence_R64-2-1_20150113.fsa
+
+#Task 3,b
+
+#count the > sings
+mariia@ox:~$ grep -c "^>" "/home/mariia/S288C_reference_genome_R64-2-1_20150113/orf_coding_all_R64-2-1_20150113.fasta"
+
+Output:
+6713
+
+mariia@ox:~$ grep -c "^>" "/home/mariia/Y55_JRIF00000000_SGD_cds.fsa"
+
+Output:
+5330
+
+#The number of ORFs in the reference strain is higher than that of the Y55 strain
+
+Task 3, c
+
+#count the common ORFs between this yeast strain and the reference we worked previously in sections 1 and 2. Note: remove strain suffixes from names in the non-reference strain.
+
+#orf_coding_all_R64-2-1_20150113.fasta and orf_trans_all_R64-2-1_20150113.fasta
+
+#remove "_Y55" suffix
+
+mariia@ox:~$ grep "^>" "/home/mariia/S288C_reference_genome_R64-2-1_20150113/orf_coding_all_R64-2-1_20150113.fasta" | cut -d " " -f 1 | cut -d ">" -f 2 > orfs_ref.txt
+
+#split the ID from the Y55 suffix, by considering "" as column delimiter
+
+mariia@ox:~$ grep "^>" "/home/mariia/Y55_JRIF00000000_SGD_cds.fsa" | sed 's/[>_]/ /g' | cut -d " " -f 2 > orfs_y55.txt
+
+#compare two files with the ORFs for the strains Y55 and ref
+
+mariia@ox:~$ comm -12 <(sort "/home/mariia/orfs_ref.txt") <(sort "/home/mariia/orfs_y55.txt") | wc -l
+
+Output:
+5168
+
+
+
+
